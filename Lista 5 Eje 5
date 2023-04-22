@@ -1,0 +1,87 @@
+
+#Ejericio 1--
+library(readxl)
+datosEje1<-read_excel("/Users/rafa.g/Desktop/Curso de R PRONOS/Regresión/R múltiple/Eje1/DatosAnscombe.xlsx", sheet = "Hoja1")
+head(datosEje1)
+tail(datosEje1)
+#a) Realice el ajuste del modelo (1)-----
+#Definir Matriz x, modelo que sea Educación ~ ingreso+menores+urbano =) yi = Bo + B1x1 + B2x2 + B3x3 + E
+x <- cbind(datosEje1$ingreso, datosEje1$menores, datosEje1$urbano)
+x 
+# Si hay ordenada.: agregamos una columna de ceros
+x<-cbind(rep(1,length(datosEje1$Educación)),x) 
+x
+#vamos a ponerle nombres a la columnas de la matriz
+colnames(x) <- c("1s", "ingreso", "menores", "urbano")
+x
+#dimensiones
+class(x)
+dim(x) # 51* 4
+#Estimamos las betas  betagorro= (x`x)^-1 x`y
+
+#Paso 1) Crear el vector Y 
+y<-cbind(datosEje1$Educación)
+y
+#Paso 2) sacar la multiplicacion del transpuest(x)*x
+xtx <- t(x)%*%x # me queda 4x4 ya que 4x51*51x4
+xtx 
+#Paso2.1) Inversa de eso
+#Sabemos que ya es simetrica porque es 4x4
+# Checamios que el det(xtx)=! para que sean indep
+det(xtx) 
+#.: si es invertible
+invXtX<- solve(xtx)
+#Comprobacion: para verificar que si sea la inversa, sabemos que la inversa por la original me da la identidad
+round(invXtX%*% xtx,0)# .: si esta bien
+# x`y
+XtY<-t(x)%*%y
+XtY
+# beta gorro
+betaGorro<-invXtX%*%XtY
+betaGorro
+#.: El ajuste esta dado por: 
+Yajus<- x%*%betaGorro
+
+#B.1 ) Encuentre una estimacion de la varianza de los errores s2----
+Yres<- y-Yajus
+SCres<- t(Yres)%*%Yres
+ScresNum<- as.numeric(SCres)
+n<-length(y) # tamaño de y
+q<-ncol(x) # numero de regresore + la ordenada
+s2<-ScresNum/(n-q)
+#B.2) la matriz de covarianzas del vector de parametros cov( BETAGORRO)----
+#cov(betagorro)= s2 * (x'x)^-1 
+covBetaGorro<-s2*invXtX
+#B.3)los errores estandar de los coecientes individuales ee( BetaGorroj); j = 0; 1; 2; 3.
+eeBetaGorro <- sqrt(diag(covBetaGorro))
+
+
+#c) Construya un intervalo del 90% de confianza para el coeficiente B2.-----
+# Por def sabemos B2gorr+-t(alpha/2,n-q)*ee.(b2)
+betaGorro
+B2gorr<-as.numeric(betaGorro[3,1])
+eeB2<-as.numeric(eeBetaGorro[3])
+limSup<- B2gorr+ qt(.05, n-q, lower.tail = FALSE)*eeB2
+limInf<-B2gorr-qt(.05, n-q, lower.tail = FALSE)*eeB2
+
+#d) d) Calcule el gasto en educacion publica que se esperara a un nivel ----
+#promedio de los regresores, esto es x = (1; x:1;x:2;  :3).
+# 
+xtx 
+ingresoBar<- as.numeric(xtx[1,2])/n
+menoresBar <- as.numeric(xtx[1,3])/n
+urbanoBar  <- as.numeric(xtx[1,4])/n
+#.: tenemo
+xBarr <- c(1,ingresoBar,menoresBar,urbanoBar)
+#e) Realice la prueba de signicancia del modelo de regresion (1), esto es H0 : XB = 0.-----
+# SCreg
+ybarr<-mean(y)
+SCreg<-as.numeric((t(betaGorro)%*%xtx%*%betaGorro)-n*(ybarr)^2)
+k<- ncol(x)
+CMreg<-SCreg/k
+#Por definición sabemos que F= CMreg/CMres= (SCreg/k)/ SCres/n-q
+Fobservada<-CMreg/s2
+#lower.tail= FALSE porque queremos P[Fobservada>F(4,47)]
+vp<-pf(Fobservada,k,n-q,lower.tail = FALSE)
+#Conclusión se rechaza Ho .: la prueba si es significativa, se puede explicar la educación
+#mediante el ingreso, menores y urbanos 
